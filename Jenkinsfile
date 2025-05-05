@@ -2,49 +2,34 @@ pipeline {
     agent any
 
     stages {
-        // Stage 1: Checkout code from Git
+        // Stage 1: Checkout code
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/Monalishamona/dockeretp.git'
             }
         }
 
-        // Stage 2: Build Docker image
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    docker.build("my-static-site:${env.BUILD_NUMBER}")
-                }
-            }
-        }
-
-        // Stage 3: Deploy (Run container)
+        // Stage 2: Deploy to a web server
         stage('Deploy') {
             steps {
-                script {
-                    // Stop and remove old container (if running)
-                    sh 'docker stop my-static-site || true'
-                    sh 'docker rm my-static-site || true'
-                    
-                    // Run new container
-                    docker.run(
-                        "my-static-site:${env.BUILD_NUMBER}",
-                        "--name my-static-site -p 8081:80 -d"
-                    )
-                }
+                // Option 1: Copy to Nginx/Apache (requires server access)
+                sh '''
+                    sudo cp index.html /var/www/html/  # For Nginx/Apache
+                    sudo systemctl restart nginx       # Reload server
+                '''
+
+                // OR Option 2: Run a Python HTTP server (temporary, for testing)
+                // sh 'python3 -m http.server 8000 &'  # Runs in background
             }
         }
     }
 
-    // Post-build actions
     post {
         success {
-            echo "Deployed! Access at: http://${env.SERVER_IP}:8081"
-            // slackSend channel: '#deployments', message: "SUCCESS: Static site deployed!"
+            echo 'Deployed successfully! Access at: http://<your-server-ip>/index.html'
         }
         failure {
-            echo 'Deployment failed!'
-            // mail to: 'admin@example.com', subject: 'Deployment Failed', body: 'Check Jenkins!'
+            echo 'Deployment failed! Check logs.'
         }
     }
 }
